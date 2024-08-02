@@ -1,4 +1,4 @@
-## Multi-Station Radio Player: Comprehensive Documentation
+## Single or Multi-Station Radio Player
 
 This document provides a detailed guide on the structure, configuration, and customization of a multi-station radio player built with HTML, CSS, and JavaScript. This player dynamically fetches song information and offers the flexibility to use a local API or a pre-configured web-based API.
 
