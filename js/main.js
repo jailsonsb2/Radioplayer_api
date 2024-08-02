@@ -4,7 +4,8 @@
     // --- [CONFIGURAÇÕES] ----------------------------------------------- 
 
     const API_KEY_LYRICS = "1637b78dc3b129e6843ed674489a92d0";
-    const API_URL = "https://api-v2.streamafrica.net/icyv2?url=";
+    const API_URL = "https://twj.es/radio_info/?radio_url=";
+    //const API_URL = "https://api-v2.streamafrica.net/icyv2?url=";
     const TIME_TO_REFRESH = window?.streams?.timeRefresh || 10000;
 
     // --- [CONSTANTES E VARIÁVEIS] --------------------------------------
@@ -210,49 +211,53 @@
     const getDataFromStreamAfrica = async (artist, title, defaultArt, defaultCover) => {
         let text;
         if (artist === null || artist === title) {
-            text = `${title} - ${title}`;
+          text = `${title} - ${title}`;
         } else {
-            text = `${artist} - ${title}`;
+          text = `${artist} - ${title}`;
         }
         const cacheKey = text.toLowerCase();
         if (cache[cacheKey]) {
-            return cache[cacheKey];
+          return cache[cacheKey];
         }
         const API_URL = `https://api-v2.streamafrica.net/musicsearch?query=${encodeURIComponent(text)}&service=spotify`;
         const response = await fetch(API_URL);
+      
         if (title === "Radioplayer Demo" || response.status === 403) {
-            const results = {
-                title,
-                artist,
-                art: defaultArt,
-                cover: defaultCover,
-                stream_url: "#not-found",
-            };
-            cache[cacheKey] = results;
-            return results;
+          const results = {
+            title,
+            artist,
+            art: defaultArt,
+            cover: defaultCover,
+            stream_url: "#not-found",
+          };
+          cache[cacheKey] = results;
+          return results;
         }
+      
         const data = response.ok ? await response.json() : {};
-        if (!data.results || data.results.length === 0) {
-            const results = {
-                title,
-                artist,
-                art: defaultArt,
-                cover: defaultCover,
-                stream_url: "#not-found",
-            };
-            cache[cacheKey] = results;
-            return results;
+      
+        // Modificação para acessar o objeto "results" da resposta da API
+        const stream = data.results || {}; 
+      
+        if (Object.keys(stream).length === 0) {
+          const results = {
+            title,
+            artist,
+            art: defaultArt,
+            cover: defaultCover,
+            stream_url: "#not-found",
+          };
+          cache[cacheKey] = results;
+          return results;
         }
-        const stream = data.results;
+      
         const results = {
-            title: stream.title || title,
-            artist: stream.artist || artist,
-            //title: title,
-            //artist: artist,
-            thumbnail: stream.artwork || defaultArt,
-            art: stream.artwork || defaultArt,
-            cover: stream.artwork || defaultCover,
-            stream_url: stream.stream_url || "#not-found",
+          title: stream.title || title, // Utilizando os dados da nova resposta da API
+          artist: stream.artist || artist,
+          thumbnail: stream.artwork?.small || defaultArt, // Acessando a URL da imagem pequena
+          art: stream.artwork?.medium || defaultArt, // Acessando a URL da imagem média
+          cover: stream.artwork?.large || defaultCover, // Acessando a URL da imagem grande
+          stream_url: stream.stream || "#not-found", // Ajustado para o novo nome da propriedade "stream"
         };
         cache[cacheKey] = results;
         return results;
@@ -294,10 +299,10 @@
         }
         const itunes = data.results[0];
         const results = {
-            title: itunes.trackName || title,
-            artist: itunes.artistName || artist,
-            //title: title,
-            //artist: artist,
+            //title: itunes.trackName || title,
+            //artist: itunes.artistName || artist,
+            title: title,
+            artist: artist,
             thumbnail: itunes.artworkUrl100 || defaultArt,
             art: itunes.artworkUrl100 ? changeImageSize(itunes.artworkUrl100, "600x600") : defaultArt,
             cover: itunes.artworkUrl100 ? changeImageSize(itunes.artworkUrl100, "1500x1500") : defaultCover,
@@ -383,12 +388,12 @@
             artist = item.song.artist;
             song = item.song.title;
           } else if (api.history) {
-            // Corrigido: Acessando as propriedades do objeto
-            artist = sanitizeText(item.artist || ""); 
+            artist = sanitizeText(item.artist || "");
             song = sanitizeText(item.song || "");
           } else if (api.songHistory) {
-            artist = item.artist;
-            song = item.song;
+            // Corrigido: Acessando as propriedades dentro do objeto 'song'
+            artist = item.song.artist; 
+            song = item.song.title;
           }
           return {
             artist,
