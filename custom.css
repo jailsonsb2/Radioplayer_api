@@ -1,0 +1,31 @@
+.station-description {
+    color: #fff;
+    opacity: 0.6;
+}
+.station-img {
+    border: 3px solid #ffffff00;
+    padding: 0.15rem;
+}
+.player-artwork {
+    padding: 0.75rem;
+    border-radius: 1rem;
+    background-color: #ffffff00;
+}
+.player-artwork img {
+    border-radius: 0.65rem;
+    box-shadow: var(--shadow-xl);
+}
+.player-cover-image {
+    animation: bga 60s linear infinite;
+}
+@keyframes bga {
+    50% {
+        transform: scale(2);
+    }
+}
+.items-start {
+    align-items: flex-start;
+    margin-top: 15px;
+}
+
+
