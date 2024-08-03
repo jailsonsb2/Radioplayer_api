@@ -2,9 +2,12 @@
 
 This document provides a detailed guide on the structure, configuration, and customization of a single / multi-station radio player built with HTML, CSS, and JavaScript. This player dynamically fetches song information and offers the flexibility to use a local API or a pre-configured web-based API.
 
+[Watch the video on YouTube](https://youtu.be/vOBukmrZftM?si=09Z4Qe8s_IzCR6GQ)
+
 ## Demo Screenshots
 
 ![Demo Screenshot](https://i.imgur.com/oULEMgZ.jpeg)
+
 
 ### 1. Overview
 
