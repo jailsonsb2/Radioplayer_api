@@ -89,7 +89,7 @@ If you choose to use the local API (`api.php`), follow these instructions to set
 
 **Note:**
 
-If the `api` field is left blank in the station configuration, `js/main.js` will default to the pre-configured web API.  Make sure the web API you are using is functioning and correctly set up within the JavaScript code.
+If the `api` field is left blank in the station configuration, will default to the pre-configured web API.  Make sure the web API you are using is functioning and correctly set up within the JavaScript code.
 
 ### 4. Customization, Interface, Interaction, and Publication
 
