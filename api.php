@@ -9,6 +9,7 @@ $allowedUrls = [
     'https://sv2.globalhostlive.com/proxy/bendistereo/stream2',
     'https://azuracast.invictamix.pt:8093/emissao.mp3',
     'https://stream.radiorostova.ru/radio-rostova-high.mp3',
+    'https://stm16.xcast.com.br:7208/stream',
 
     // Adicione outras URLs permitidas aqui
 ];
@@ -132,7 +133,7 @@ if (!filter_var($url, FILTER_VALIDATE_URL)) {
 }
 
 if (!in_array($url, $allowedUrls)) {
-    echo json_encode(["error" => "URL not allowed, to use, send an email contato@jailson.es"]);
+    echo json_encode(["error" => "URL not allowed, to use, add to url list in api.php"]);
     exit;
 }
 
