@@ -4,8 +4,8 @@
     // --- [CONFIGURAÇÕES] ----------------------------------------------- 
 
     const API_KEY_LYRICS = "1637b78dc3b129e6843ed674489a92d0";
-    const API_URL = "https://twj.es/radio_info/?radio_url=";
-    //const API_URL = "https://api-v2.streamafrica.net/icyv2?url=";
+    //const API_URL = "https://twj.es/radio_info/?radio_url=";
+    const API_URL = "https://api-v2.streamafrica.net/icyv2?url=";
     const TIME_TO_REFRESH = window?.streams?.timeRefresh || 10000;
 
     // --- [CONSTANTES E VARIÁVEIS] --------------------------------------
@@ -808,7 +808,8 @@
                 currentStation = current;
             }
             const server = currentStation.server || "itunes";
-            const jsonUri = currentStation.api || API_URL + encodeURIComponent(current.stream_url);
+            //const jsonUri = currentStation.api || API_URL + encodeURIComponent(current.stream_url);
+            const jsonUri = currentStation.api || API_URL + current.stream_url;
             fetch(jsonUri)
                 .then((response) => response.json())
                 .then(async (res) => {
