@@ -252,8 +252,10 @@
         }
       
         const results = {
-          title: stream.title || title, // Utilizando os dados da nova resposta da API
-          artist: stream.artist || artist,
+          //title: stream.title || title, // Utilizando os dados da nova resposta da API
+          //artist: stream.artist || artist,
+          title: title,
+          artist: artist,
           thumbnail: stream.artwork?.small || defaultArt, // Acessando a URL da imagem pequena
           art: stream.artwork?.medium || defaultArt, // Acessando a URL da imagem média
           cover: stream.artwork?.large || defaultCover, // Acessando a URL da imagem grande
