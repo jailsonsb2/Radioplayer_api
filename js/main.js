@@ -207,121 +207,101 @@
         });
     };
 
-    const getDataFromStreamAfrica = async (artist, title, defaultArt, defaultCover) => {
-        let text;
-        if (artist === null || artist === title) {
-          text = `${title} - ${title}`;
-        } else {
-          text = `${artist} - ${title}`;
-        }
-        const cacheKey = text.toLowerCase();
-        if (cache[cacheKey]) {
-          return cache[cacheKey];
-        }
-        const API_URL = `https://twj.es/musicsearch?query=${encodeURIComponent(text)}&service=spotify`;
-        const response = await fetch(API_URL);
-      
-        if (title === "Radioplayer Demo" || response.status === 403) {
-          const results = {
-            title,
-            artist,
-            art: defaultArt,
-            cover: defaultCover,
-            stream_url: "#not-found",
-          };
-          cache[cacheKey] = results;
-          return results;
-        }
-      
-        const data = response.ok ? await response.json() : {};
-      
-        // Modificação para acessar o objeto "results" da resposta da API
-        const stream = data.results || {}; 
-      
-        if (Object.keys(stream).length === 0) {
-          const results = {
-            title,
-            artist,
-            art: defaultArt,
-            cover: defaultCover,
-            stream_url: "#not-found",
-          };
-          cache[cacheKey] = results;
-          return results;
-        }
-      
-        const results = {
-          //title: stream.title || title, // Utilizando os dados da nova resposta da API
-          //artist: stream.artist || artist,
-          title: title,
-          artist: artist,
-          thumbnail: stream.artwork?.small || defaultArt, // Acessando a URL da imagem pequena
-          art: stream.artwork?.medium || defaultArt, // Acessando a URL da imagem média
-          cover: stream.artwork?.large || defaultCover, // Acessando a URL da imagem grande
-          stream_url: stream.stream || "#not-found", // Ajustado para o novo nome da propriedade "stream"
-        };
-        cache[cacheKey] = results;
-        return results;
-    };
+    async function getDataFrom({ artist, title, art, cover, server }) {
+        let dataFrom = {};
+        let text = artist ? `${artist} - ${title}` : title;
 
-    const getDataFromITunes = async (artist, title, defaultArt, defaultCover) => {
-        let text;
-        if (artist === title) {
-            text = `${title}`;
-        } else {
-            text = `${artist} - ${title}`;
-        }
         const cacheKey = text.toLowerCase();
         if (cache[cacheKey]) {
             return cache[cacheKey];
         }
 
-        const response = await fetch(`https://itunes.apple.com/search?limit=1&term=${encodeURIComponent(text)}`);
-        if (response.status === 403) {
-            const results = {
-                title,
-                artist,
-                art: defaultArt,
-                cover: defaultCover,
-                stream_url: "#not-found",
-            };
-            return results;
-        }
-        const data = response.ok ? await response.json() : {};
-        if (!data.results || data.results.length === 0) {
-            const results = {
-                title,
-                artist,
-                art: defaultArt,
-                cover: defaultCover,
-                stream_url: "#not-found",
-            };
-            return results;
-        }
-        const itunes = data.results[0];
-        const results = {
-            //title: itunes.trackName || title,
-            //artist: itunes.artistName || artist,
-            title: title,
-            artist: artist,
-            thumbnail: itunes.artworkUrl100 || defaultArt,
-            art: itunes.artworkUrl100 ? changeImageSize(itunes.artworkUrl100, "600x600") : defaultArt,
-            cover: itunes.artworkUrl100 ? changeImageSize(itunes.artworkUrl100, "1500x1500") : defaultCover,
-            stream_url: "#not-found",
-        };
-        cache[cacheKey] = results;
-        return results;
-    };
+        try {
+            const response = await fetch(`https://twj.es/musicsearch?query=${encodeURIComponent(text)}&service=${server}`);
 
-    async function getDataFrom({ artist, title, art, cover, server }) {
-        let dataFrom = {};
-        if (server.toLowerCase() === "spotify") {
-            dataFrom = await getDataFromStreamAfrica(artist, title, art, cover);
-        } else {
-            dataFrom = await getDataFromITunes(artist, title, art, cover);
+            if (response.ok) {
+                const data = await response.json();
+
+                if (data.results && Object.keys(data.results).length !== 0) {
+                    dataFrom = {
+                        title: data.results.title || title,
+                        artist: data.results.artist || artist,
+                        thumbnail: data.results.artwork?.small || art,
+                        art: data.results.artwork?.medium || art,
+                        cover: data.results.artwork?.large || cover,
+                        stream_url: data.results.stream_url || "#not-found",
+                    };
+                } else {
+                    // Se a API não retornar resultados, chama getDataFromITunes
+                    dataFrom = await getDataFromITunes(artist, title, art, cover);
+                }
+            } else {
+                // Em caso de erro na requisição, chama getDataFromITunes
+                dataFrom = await getDataFromITunes(artist, title, art, cover);
+            }
+
+            cache[cacheKey] = dataFrom;
+            return dataFrom;
+        } catch (error) {
+            console.error("Erro ao buscar dados, usando iTunes como fallback:", error);
+            // Em caso de erro, chama getDataFromITunes
+            return await getDataFromITunes(artist, title, art, cover); 
         }
-        return dataFrom;
     }
+
+    async function getDataFromITunes(artist, title, defaultArt, defaultCover) {
+        let text = artist ? `${artist} - ${title}` : title;
+        const cacheKey = text.toLowerCase();
+
+        if (cache[cacheKey]) {
+            return cache[cacheKey];
+        }
+
+        try {
+            const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(text)}&media=music&limit=1`);
+            if (!response.ok) {
+                throw new Error(`Erro na requisição para o iTunes. Status: ${response.status}`);
+            }
+            const data = await response.json();
+
+            if (data.resultCount > 0) {
+                const itunesData = data.results[0];
+                const results = {
+                    title: itunesData.trackName || title,
+                    artist: itunesData.artistName || artist,
+                    thumbnail: itunesData.artworkUrl100 || defaultArt,
+                    art: itunesData.artworkUrl100
+                        ? changeImageSize(itunesData.artworkUrl100, "600x600")
+                        : defaultArt,
+                    cover: itunesData.artworkUrl100
+                        ? changeImageSize(itunesData.artworkUrl100, "1500x1500")
+                        : defaultCover,
+                    stream_url: itunesData.trackViewUrl || "#not-found", // Adicionado trackViewUrl
+                };
+                cache[cacheKey] = results;
+                return results;
+            } else {
+                console.log("Nenhum resultado encontrado no iTunes.");
+                return {
+                    title,
+                    artist,
+                    art: defaultArt,
+                    cover: defaultCover,
+                    stream_url: "#not-found",
+                };
+            }
+        } catch (error) {
+            console.error("Erro ao buscar dados do iTunes:", error);
+            return {
+                title,
+                artist,
+                art: defaultArt,
+                cover: defaultCover,
+                stream_url: "#not-found",
+            };
+        }
+    }
+
 
     const getLyrics = async (artist, name) => {
         try {
