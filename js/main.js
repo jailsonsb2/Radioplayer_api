@@ -4,8 +4,7 @@
     // --- [CONFIGURAÇÕES] ----------------------------------------------- 
 
     const API_KEY_LYRICS = "1637b78dc3b129e6843ed674489a92d0";
-    //const API_URL = "https://twj.es/radio_info/?radio_url=";
-    const API_URL = "https://api-v2.streamafrica.net/icyv2?url=";
+    const API_URL = "https://twj.es/radio_info/?radio_url=";
     const TIME_TO_REFRESH = window?.streams?.timeRefresh || 10000;
 
     // --- [CONSTANTES E VARIÁVEIS] --------------------------------------
@@ -219,7 +218,7 @@
         if (cache[cacheKey]) {
           return cache[cacheKey];
         }
-        const API_URL = `https://api-v2.streamafrica.net/musicsearch?query=${encodeURIComponent(text)}&service=spotify`;
+        const API_URL = `https://twj.es/musicsearch?query=${encodeURIComponent(text)}&service=spotify`;
         const response = await fetch(API_URL);
       
         if (title === "Radioplayer Demo" || response.status === 403) {
