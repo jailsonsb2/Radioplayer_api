@@ -217,7 +217,7 @@
         }
 
         try {
-            const response = await fetch(`https://twj.es/musicsearch?query=${encodeURIComponent(text)}&service=${server}`);
+            const response = await fetch(`https://twj.es/musicsearch/?query=${encodeURIComponent(text)}&service=${server}`);
 
             if (response.ok) {
                 const data = await response.json();
