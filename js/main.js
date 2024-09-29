@@ -210,43 +210,31 @@
     async function getDataFrom({ artist, title, art, cover, server }) {
         let dataFrom = {};
         let text = artist ? `${artist} - ${title}` : title;
-
+      
         const cacheKey = text.toLowerCase();
         if (cache[cacheKey]) {
-            return cache[cacheKey];
+          return cache[cacheKey];
         }
-
+      
         try {
-            const response = await fetch(`https://twj.es/musicsearch/?query=${encodeURIComponent(text)}&service=${server}`);
-
-            if (response.ok) {
-                const data = await response.json();
-
-                if (data.results && Object.keys(data.results).length !== 0) {
-                    dataFrom = {
-                        title: data.results.title || title,
-                        artist: data.results.artist || artist,
-                        thumbnail: data.results.artwork?.small || art,
-                        art: data.results.artwork?.medium || art,
-                        cover: data.results.artwork?.large || cover,
-                        stream_url: data.results.stream_url || "#not-found",
-                    };
-                } else {
-                    // Se a API não retornar resultados, chama getDataFromITunes
-                    dataFrom = await getDataFromITunes(artist, title, art, cover);
-                }
-            } else {
-                // Em caso de erro na requisição, chama getDataFromITunes
-                dataFrom = await getDataFromITunes(artist, title, art, cover);
-            }
-
-            cache[cacheKey] = dataFrom;
-            return dataFrom;
+          // 1. Tenta buscar na sua API PHP primeiro
+          const response = await fetch(`https://twj.es/api/getMusicInfo.php?artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}&service=${server}`);
+      
+          if (response.ok) {
+            dataFrom = await response.json();
+          } else {
+            // 2. Em caso de erro na API PHP, faz o fallback para o iTunes
+            console.warn("Erro na API PHP, buscando no iTunes...", response.status);
+            dataFrom = await getDataFromITunes(artist, title, art, cover);
+          }
         } catch (error) {
-            console.error("Erro ao buscar dados, usando iTunes como fallback:", error);
-            // Em caso de erro, chama getDataFromITunes
-            return await getDataFromITunes(artist, title, art, cover); 
+          console.error("Erro ao buscar dados:", error);
+          // 3. Em caso de erro geral (ex: problema de rede), também usa o iTunes
+          dataFrom = await getDataFromITunes(artist, title, art, cover);
         }
+      
+        cache[cacheKey] = dataFrom;
+        return dataFrom;
     }
 
     async function getDataFromITunes(artist, title, defaultArt, defaultCover) {
@@ -654,6 +642,10 @@
                 cover,
                 server,
             });
+            // Verifica se é Deezer e se stream_url é inválida
+            if (server === 'deezer' && !dataFrom.stream_url) { 
+                dataFrom.stream_url = '#'; // Define como '#' para evitar link inválido
+            }
             return historyTemplate
                 .replace("{{art}}", dataFrom.thumbnail || dataFrom.art)
                 .replace("{{song}}", dataFrom.title)
