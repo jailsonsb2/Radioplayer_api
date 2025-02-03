@@ -4,7 +4,7 @@
     // --- [CONFIGURAÇÕES] ----------------------------------------------- 
 
     const API_KEY_LYRICS = "1637b78dc3b129e6843ed674489a92d0";
-    const API_URL = "https://jbcast.icu/api/metadata.php?url=";
+    const API_URL = "https://api.twj.es/metadata.php?url=";
     const TIME_TO_REFRESH = window?.streams?.timeRefresh || 10000;
 
     // --- [CONSTANTES E VARIÁVEIS] --------------------------------------
@@ -207,40 +207,83 @@
         });
     };
 
-    async function getDataFrom({ artist, title }) {
-      let dataFrom = {};
-      let query = `${artist ? encodeURIComponent(artist) + " " : ""}${encodeURIComponent(title)}`;
-      const cacheKey = query.toLowerCase();
+    async function getDataFrom({ artist, title, art, cover }) {
+        let dataFrom = {};
+        let text = artist ? `${artist} - ${title}` : title;
     
-      if (cache[cacheKey]) {
-        return cache[cacheKey];
-      }
-    
-      try {
-        const response = await fetch(`https://api.twj.es/search.php?query=${query}`);
-    
-        if (!response.ok) {
-          throw new Error(`Erro na API: ${response.status} ${response.statusText}`);
+        const cacheKey = text.toLowerCase();
+        if (cache[cacheKey]) {
+            return cache[cacheKey];
         }
     
-        const json = await response.json();
+        try {
+            // 1. Tenta buscar no novo endpoint de busca primeiro
+            dataFrom = await getDataFromSearch(artist, title, art, cover);
     
-        // Processa a resposta da nova API
-        if (json.results) {
-          dataFrom = json.results;
-        } else {
-          throw new Error("A API não retornou resultados válidos.");
+            // Se getDataFromSearch falhou e retornou #not-found, tenta o iTunes
+            if (dataFrom.stream_url === "#not-found") {
+                console.warn("Novo endpoint falhou, buscando no iTunes...");
+                dataFrom = await getDataFromITunes(artist, title, art, cover);
+            }
+    
+        } catch (error) {
+            console.error("Erro ao buscar dados:", error);
+            // 2. Em caso de erro geral, tenta o iTunes como último recurso
+            dataFrom = await getDataFromITunes(artist, title, art, cover);
         }
     
-      } catch (error) {
-        console.error("Erro ao buscar dados:", error);
-        //  Aqui você poderia implementar um fallback, se necessário.
-        //  Por exemplo, uma chamada a uma API alternativa ou retornar um objeto vazio.
-        dataFrom = {}; // ou um objeto com valores default
-      }
+        cache[cacheKey] = dataFrom;
+        return dataFrom;
+    }
     
-      cache[cacheKey] = dataFrom;
-      return dataFrom;
+    
+    async function getDataFromSearch(artist, title, defaultArt, defaultCover) {
+        let text = artist ? `${artist} - ${title}` : title;
+        const cacheKey = text.toLowerCase();
+    
+        if (cache[cacheKey]) {
+            return cache[cacheKey];
+        }
+    
+        try {
+            const response = await fetch(`https://api.twj.es/search.php?query=${encodeURIComponent(text)}`);
+            if (!response.ok) {
+                throw new Error(`Erro na requisição para o novo endpoint de busca. Status: ${response.status}`);
+            }
+            const data = await response.json();
+    
+            if (data.results) {
+                const searchResults = data.results;
+                const results = {
+                    title: searchResults.title || title,
+                    artist: searchResults.artist || artist,
+                    thumbnail: searchResults.artwork || defaultArt,
+                    art: searchResults.artwork || defaultArt,
+                    cover: searchResults.artwork || defaultCover,
+                    stream_url: searchResults.stream_url || "#not-found",
+                };
+                cache[cacheKey] = results;
+                return results;
+            } else {
+                console.log("Nenhum resultado encontrado no novo endpoint de busca.");
+                return {
+                    title,
+                    artist,
+                    art: defaultArt,
+                    cover: defaultCover,
+                    stream_url: "#not-found",
+                };
+            }
+        } catch (error) {
+            console.error("Erro ao buscar dados do novo endpoint de busca:", error);
+            return {
+                title,
+                artist,
+                art: defaultArt,
+                cover: defaultCover,
+                stream_url: "#not-found",
+            };
+        }
     }
 
     async function getDataFromITunes(artist, title, defaultArt, defaultCover) {
@@ -706,77 +749,7 @@
         if (playButton !== null) {
             playButton.addEventListener("click", handlePlayPause);
         }
-    
-        // --- [CONTROLE DE VOLUME] --------------------------------------
-    
-        const range = document.querySelector(".player-volume");
-        const rangeFill = document.querySelector(".player-range-fill");
-        const rangeWrapper = document.querySelector(".player-range-wrapper");
-        const rangeThumb = document.querySelector(".player-range-thumb");
-        let currentVolume = parseInt(localStorage.getItem("volume") || "100", 10) || 100;
-    
-        // Rango recorrido
-        function setRangeWidth(percent) {
-            rangeFill.style.width = `${percent}%`;
-        }
-    
-        // Posición del thumb
-        function setThumbPosition(percent) {
-            const compensatedWidth = rangeWrapper.offsetWidth - rangeThumb.offsetWidth;
-            const thumbPosition = (percent / 100) * compensatedWidth;
-            rangeThumb.style.left = `${thumbPosition}px`;
-        }
-    
-        // Actualiza el volumen al cambiar el rango
-        function updateVolume(value) {
-            range.value = value;
-            setRangeWidth(value);
-            setThumbPosition(value);
-            localStorage.setItem("volume", value);
-            audio.volume = value / 100;
-        }
-    
-        // Valor inicial
-        if (range !== null) {
-            updateVolume(currentVolume);
-    
-            // Escucha el cambio del rango
-            range.addEventListener("input", (event) => {
-                updateVolume(parseInt(event.target.value, 10));
-            });
-    
-            // Escucha el click en el rango
-            rangeWrapper.addEventListener("mousedown", (event) => {
-                const rangeRect = range.getBoundingClientRect();
-                const clickX = event.clientX - rangeRect.left;
-                const percent = (clickX / range.offsetWidth) * 100;
-                const value = Math.round((range.max - range.min) * (percent / 100)) + parseInt(range.min);
-                updateVolume(value);
-            });
-    
-            // Escucha el movimiento del mouse
-            rangeThumb.addEventListener("mousedown", () => {
-                document.addEventListener("mousemove", handleThumbDrag);
-            });
-        }
-    
-        // Mueve el thumb y actualiza el volumen
-        function handleThumbDrag(event) {
-            const rangeRect = range.getBoundingClientRect();
-            const clickX = event.clientX - rangeRect.left;
-            let percent = (clickX / range.offsetWidth) * 100;
-            percent = Math.max(0, Math.min(100, percent));
-            const value = Math.round((range.max - range.min) * (percent / 100)) + parseInt(range.min);
-            updateVolume(value);
-        }
-    
-        // Deja de escuchar el movimiento del mouse
-        document.addEventListener("mouseup", () => {
-            document.removeEventListener("mousemove", handleThumbDrag);
-        });
-        
-        // --- [FIM DO CONTROLE DE VOLUME] -----------------------------
-    
+         
         // Iniciar o stream ( atualizado para evitar valor undefined )
         function init(current) {
             // Cancelar o timeout anterior
@@ -855,6 +828,77 @@
                 }
             });
         }
+
+        // --- [CONTROLE DE VOLUME] --------------------------------------
+    
+        const range = document.querySelector(".player-volume");
+        const rangeFill = document.querySelector(".player-range-fill");
+        const rangeWrapper = document.querySelector(".player-range-wrapper");
+        const rangeThumb = document.querySelector(".player-range-thumb");
+        let currentVolume = parseInt(localStorage.getItem("volume") || "100", 10) || 100;
+    
+        // Rango recorrido
+        function setRangeWidth(percent) {
+            rangeFill.style.width = `${percent}%`;
+        }
+    
+        // Posición del thumb
+        function setThumbPosition(percent) {
+            const compensatedWidth = rangeWrapper.offsetWidth - rangeThumb.offsetWidth;
+            const thumbPosition = (percent / 100) * compensatedWidth;
+            rangeThumb.style.left = `${thumbPosition}px`;
+        }
+    
+        // Actualiza el volumen al cambiar el rango
+        function updateVolume(value) {
+            range.value = value;
+            setRangeWidth(value);
+            setThumbPosition(value);
+            localStorage.setItem("volume", value);
+            audio.volume = value / 100;
+        }
+    
+        // Valor inicial
+        if (range !== null) {
+            updateVolume(currentVolume);
+    
+            // Escucha el cambio del rango
+            range.addEventListener("input", (event) => {
+                updateVolume(parseInt(event.target.value, 10));
+            });
+    
+            // Escucha el click en el rango
+            rangeWrapper.addEventListener("mousedown", (event) => {
+                const rangeRect = range.getBoundingClientRect();
+                const clickX = event.clientX - rangeRect.left;
+                const percent = (clickX / range.offsetWidth) * 100;
+                const value = Math.round((range.max - range.min) * (percent / 100)) + parseInt(range.min);
+                updateVolume(value);
+            });
+    
+            // Escucha el movimiento del mouse
+            rangeThumb.addEventListener("mousedown", () => {
+                document.addEventListener("mousemove", handleThumbDrag);
+            });
+        }
+    
+        // Mueve el thumb y actualiza el volumen
+        function handleThumbDrag(event) {
+            const rangeRect = range.getBoundingClientRect();
+            const clickX = event.clientX - rangeRect.left;
+            let percent = (clickX / range.offsetWidth) * 100;
+            percent = Math.max(0, Math.min(100, percent));
+            const value = Math.round((range.max - range.min) * (percent / 100)) + parseInt(range.min);
+            updateVolume(value);
+        }
+    
+        // Deja de escuchar el movimiento del mouse
+        document.addEventListener("mouseup", () => {
+            document.removeEventListener("mousemove", handleThumbDrag);
+        });
+        
+        // --- [FIM DO CONTROLE DE VOLUME] -----------------------------
+    
     }
 
     // --- [POP-UP DE INÍCIO E HANDLERS] --------------------------------
