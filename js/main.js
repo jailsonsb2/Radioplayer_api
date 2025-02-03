@@ -207,34 +207,40 @@
         });
     };
 
-    async function getDataFrom({ artist, title, art, cover, server }) {
-        let dataFrom = {};
-        let text = artist ? `${artist} - ${title}` : title;
-      
-        const cacheKey = text.toLowerCase();
-        if (cache[cacheKey]) {
-          return cache[cacheKey];
+    async function getDataFrom({ artist, title }) {
+      let dataFrom = {};
+      let query = `${artist ? encodeURIComponent(artist) + " " : ""}${encodeURIComponent(title)}`;
+      const cacheKey = query.toLowerCase();
+    
+      if (cache[cacheKey]) {
+        return cache[cacheKey];
+      }
+    
+      try {
+        const response = await fetch(`https://api.twj.es/search.php?query=${query}`);
+    
+        if (!response.ok) {
+          throw new Error(`Erro na API: ${response.status} ${response.statusText}`);
         }
-      
-        try {
-          // 1. Tenta buscar na sua API PHP primeiro
-          const response = await fetch(`https://twj.es/api/getMusicInfo.php?artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}&service=${server}`);
-      
-          if (response.ok) {
-            dataFrom = await response.json();
-          } else {
-            // 2. Em caso de erro na API PHP, faz o fallback para o iTunes
-            console.warn("Erro na API PHP, buscando no iTunes...", response.status);
-            dataFrom = await getDataFromITunes(artist, title, art, cover);
-          }
-        } catch (error) {
-          console.error("Erro ao buscar dados:", error);
-          // 3. Em caso de erro geral (ex: problema de rede), também usa o iTunes
-          dataFrom = await getDataFromITunes(artist, title, art, cover);
+    
+        const json = await response.json();
+    
+        // Processa a resposta da nova API
+        if (json.results) {
+          dataFrom = json.results;
+        } else {
+          throw new Error("A API não retornou resultados válidos.");
         }
-      
-        cache[cacheKey] = dataFrom;
-        return dataFrom;
+    
+      } catch (error) {
+        console.error("Erro ao buscar dados:", error);
+        //  Aqui você poderia implementar um fallback, se necessário.
+        //  Por exemplo, uma chamada a uma API alternativa ou retornar um objeto vazio.
+        dataFrom = {}; // ou um objeto com valores default
+      }
+    
+      cache[cacheKey] = dataFrom;
+      return dataFrom;
     }
 
     async function getDataFromITunes(artist, title, defaultArt, defaultCover) {
