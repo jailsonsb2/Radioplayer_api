@@ -396,30 +396,51 @@
 
 
     function normalizeHistory(api) {
-        let artist;
-        let song;
-        let history = api.song_history || api.history || api.songHistory || [];
-        history = history.slice(0, 4);
+        // A chave do histórico pode variar (song_history, history, etc.)
+        const historyData = api.song_history || api.history || api.songHistory || [];
+    
+        // Verificamos se o dado é de fato um array antes de processar
+        if (!Array.isArray(historyData)) {
+            console.error("O histórico recebido não é um array:", historyData);
+            return [];
+        }
+    
+        // A função setHistory já limita o resultado, mas podemos garantir aqui também.
+        const history = historyData.slice(0, 10); 
       
         const historyNormalized = history.map((item) => {
-          if (api.song_history) {
-            artist = item.song.artist;
+          let artist = "";
+          let song = "";
+    
+          // 1. Verifica o NOVO FORMATO: { song: { title: '...', artist: '...' } }
+          if (item.song && typeof item.song === 'object' && item.song.title) {
+            artist = item.song.artist || ""; // O artista pode ser uma string vazia
             song = item.song.title;
-          } else if (api.history) {
-            artist = sanitizeText(item.artist || "");
-            song = sanitizeText(item.song || "");
-          } else if (api.songHistory) {
-            // Corrigido: Acessando as propriedades dentro do objeto 'song'
-            artist = item.song.artist; 
-            song = item.song.title;
+          } 
+          // 2. Verifica formatos ANTIGOS (ex: { artist: '...', song: '...' })
+          else if (item.song && typeof item.song === 'string') {
+            artist = item.artist || "";
+            song = item.song;
           }
+          // 3. Fallback para outros formatos possíveis (ex: { artist: '...', title: '...' })
+          else if (item.title) {
+             artist = item.artist || "";
+             song = item.title;
+          }
+    
+          // Se não encontrou um nome de música, retorna nulo para filtrar depois
+          if (!song) {
+              return null;
+          }
+    
           return {
-            artist,
-            song,
+            artist: sanitizeText(artist),
+            song: sanitizeText(song),
           };
         });
       
-        return historyNormalized;
+        // Filtra quaisquer itens que não puderam ser processados (retornaram null)
+        return historyNormalized.filter(item => item !== null);
     }
 
 
